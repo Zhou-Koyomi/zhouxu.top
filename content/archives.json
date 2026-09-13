@@ -1,0 +1,626 @@
+{
+  "categories": [
+    "个人简介",
+    "我的作品",
+    "项目经历",
+    "联系方式",
+    "更多内容"
+  ],
+  "columns": [
+    "我的作品",
+    "项目经历",
+    "个人简介",
+    "联系方式",
+    "更多内容"
+  ],
+  "records": [
+    {
+      "id": "X-001",
+      "title": "关于 ZhouXu",
+      "en": "ABOUT ZHOUXU",
+      "department": "站长档案",
+      "category": "个人简介",
+      "date": "持续更新",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "你好，我是 ZhouXu。这里是 zhouxu.top——我的个人主页。我把它做成了一座档案终端：关于我的简介、作品、项目与联系方式，都被编目成一份份档案，等待你逐一读取。",
+      "findings": [
+        "喜欢把想法做成可以打开、可以点击的真实页面。",
+        "相信个人网站不必复杂，但应该有自己的风格。",
+        "更多关于我的信息正在整理中，更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-002",
+      "title": "关于本站",
+      "en": "ABOUT THIS SITE",
+      "department": "站点档案",
+      "category": "个人简介",
+      "date": "持续更新",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "zhouxu.top 以三维档案库的形式组织内容：左右切换栏目，上下选择档案，回车读取全文。网站持续建设中，新的内容会以新档案的形式不断加入。",
+      "findings": [
+        "使用方向键或鼠标在档案架之间浏览。",
+        "按 / 键可以检索全部档案。",
+        "在档案详情页可以导出对应的文本文件。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-003",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "站长档案",
+      "category": "个人简介",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-004",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "站长档案",
+      "category": "个人简介",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-005",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "站长档案",
+      "category": "个人简介",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-006",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "站长档案",
+      "category": "个人简介",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-007",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "站长档案",
+      "category": "个人简介",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-008",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "站长档案",
+      "category": "个人简介",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-009",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "作品集",
+      "category": "我的作品",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-010",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "作品集",
+      "category": "我的作品",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-011",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "作品集",
+      "category": "我的作品",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-012",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "作品集",
+      "category": "我的作品",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-013",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "作品集",
+      "category": "我的作品",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-014",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "作品集",
+      "category": "我的作品",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-015",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "作品集",
+      "category": "我的作品",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-016",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "作品集",
+      "category": "我的作品",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-017",
+      "title": "个人网站 zhouxu.top",
+      "en": "ZHOUXU.TOP",
+      "department": "个人项目",
+      "category": "项目经历",
+      "date": "2026 至今",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "我的第一个个人网站项目：注册域名 zhouxu.top，把一个三维档案终端改造成自己的主页，并部署上线。从挑选域名、改写内容到配置解析，整个过程由我独立完成。",
+      "findings": [
+        "域名：zhouxu.top，注册于腾讯云。",
+        "界面基于 Three.js 三维交互档案终端改造。",
+        "后续项目将在这里陆续归档，更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-018",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "个人项目",
+      "category": "项目经历",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-019",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "个人项目",
+      "category": "项目经历",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-020",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "个人项目",
+      "category": "项目经历",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-021",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "个人项目",
+      "category": "项目经历",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-022",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "个人项目",
+      "category": "项目经历",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-023",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "个人项目",
+      "category": "项目经历",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-024",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "个人项目",
+      "category": "项目经历",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-025",
+      "title": "电子邮箱",
+      "en": "EMAIL",
+      "department": "联系方式",
+      "category": "联系方式",
+      "date": "长期有效",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "目前最可靠的联系方式是电子邮箱。无论是合作想法、问题交流，还是单纯打个招呼，都欢迎来信。",
+      "findings": [
+        "邮箱：zhouxu_2007@163.com",
+        "来信请简单说明来意，我会尽快回复。",
+        "更多联系方式整理中，更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-026",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "联系方式",
+      "category": "联系方式",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-027",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "联系方式",
+      "category": "联系方式",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-028",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "联系方式",
+      "category": "联系方式",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-029",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "联系方式",
+      "category": "联系方式",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-030",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "联系方式",
+      "category": "联系方式",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-031",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "联系方式",
+      "category": "联系方式",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-032",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "联系方式",
+      "category": "联系方式",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-033",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "待补充",
+      "category": "更多内容",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-034",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "待补充",
+      "category": "更多内容",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-035",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "待补充",
+      "category": "更多内容",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-036",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "待补充",
+      "category": "更多内容",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-037",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "待补充",
+      "category": "更多内容",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-038",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "待补充",
+      "category": "更多内容",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-039",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "待补充",
+      "category": "更多内容",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    },
+    {
+      "id": "X-040",
+      "title": "更新中",
+      "en": "COMING SOON",
+      "department": "待补充",
+      "category": "更多内容",
+      "date": "待定",
+      "lead": "ZhouXu",
+      "clearance": "PUBLIC AREA",
+      "abstract": "更新中...敬请期待。",
+      "findings": [
+        "更新中...敬请期待。"
+      ],
+      "source": "https://zhouxu.top"
+    }
+  ]
+}
