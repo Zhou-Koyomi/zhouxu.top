@@ -98,6 +98,9 @@ button {
   display: block;
   width: 100%;
   height: 100%;
+  /* 平面拖拽（水平切列、垂直切档案）全部由页面接管；页面为固定缩放的
+     1920×1080 舞台，没有浏览器滚动/缩放手势需要保留。 */
+  touch-action: none;
 }
 [data-review="true"] * {
   transition: none !important;
@@ -951,6 +954,21 @@ button {
   font-size: 23px;
   line-height: 1;
 }
+/* 作品档案：收藏按钮下方叠放「下载原图」，非作品档案布局保持不变。 */
+.detail-actions-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 6px;
+}
+.download-button {
+  width: auto;
+  min-height: 0;
+  color: #6b675c;
+}
+.download-button span {
+  font-size: 14px;
+}
 .detail-footnote {
   display: flex;
   justify-content: space-between;
@@ -964,6 +982,17 @@ button {
   text-decoration: none;
 }
 .detail-footnote a:hover {
+  text-decoration: underline;
+}
+/* 「联系我」改为站内跳转按钮，视觉与原链接一致。 */
+.detail-footnote button {
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  background: none;
+  padding: 0;
+}
+.detail-footnote button:hover {
   text-decoration: underline;
 }
 .modal-backdrop {
@@ -2018,10 +2047,7 @@ button {
   cursor: wait;
 }
 .reduce-motion .viewer-parts,
-.reduce-motion .viewer-actions button {
-  transition: none;
-}
-
+.reduce-motion .viewer-actions button,
 /* Use the same rolling engine as archive numbers, with quieter text blur. */
 #selected-title,
 #column-name,

@@ -12,7 +12,8 @@ import { applyTextureQuality, resizeQuality } from "./quality-renderer";
 import { CardAppearance } from "./appearance";
 import { configureInternalOptics } from "./internal-optics";
 import { DecryptionController } from "./decryption";
-import { fileAtSlot, fileLocation } from "./data";
+import { fileAtSlot, fileLocation, records } from "./data";
+import { ARTWORKS } from "./works";
 import {
   cellKey,
   sameCell,
@@ -46,6 +47,86 @@ const ease = (t: number) => {
   t = THREE.MathUtils.clamp(t, 0, 1);
   return t * t * t * (t * (t * 6 - 15) + 10);
 };
+// Pointer drag across the archive plane (lanes × rows) with screen-axis
+// semantics: horizontal pointer pixels drive lanes, vertical pixels drive
+// rows. At press time the screen-pixel footprint of one lane and one row of
+// track movement is measured through the camera; the lane offset divides dx
+// by the lane footprint's horizontal component (the content follows the
+// pointer horizontally 1:1), and the row offset divides -dy by the row
+// footprint's pitch. The oblique projection would otherwise assign a pure
+// horizontal drag mostly to rows, inverting the intended gesture semantics.
+// A short movement history (120 ms window, reset on direction reversal)
+// estimates the release velocity per axis; standing still for 80 ms zeroes it.
+class PlaneDragTracker {
+  active = false;
+  readonly value = { lane: 0, row: 0 };
+  private samples: { value: { lane: number; row: number }; time: number }[];
+  private lastMotion = -Infinity;
+  private motion = { x: 0, y: 0 };
+  private pointer: { x: number; y: number };
+  private readonly laneScale: number;
+  private readonly rowScale: number;
+  constructor(
+    private readonly startX: number,
+    private readonly startY: number,
+    projection: {
+      lane: { x: number; y: number };
+      row: { x: number; y: number };
+    },
+    time: number,
+  ) {
+    this.pointer = { x: startX, y: startY };
+    this.samples = [{ value: { lane: 0, row: 0 }, time }];
+    // +1 lane shifts the content by lane.x < 0 px (leftward), so a leftward
+    // pointer maps to a positive lane offset — the same direction as
+    // ArrowRight. An upward pointer maps to a positive row offset — the next
+    // file, the same direction as ArrowDown.
+    this.laneScale = 1 / projection.lane.x;
+    this.rowScale = -1 / Math.hypot(projection.row.x, projection.row.y);
+  }
+  move(x: number, y: number, time: number) {
+    const dx = x - this.startX,
+      dy = y - this.startY;
+    // The activation threshold coexists with the <6px click selection.
+    if (!this.active && Math.hypot(dx, dy) < 10) return;
+    this.active = true;
+    this.value.lane = dx * this.laneScale;
+    this.value.row = dy * this.rowScale;
+    const last = this.samples[this.samples.length - 1];
+    if (last) {
+      const mx = x - this.pointer.x,
+        my = y - this.pointer.y;
+      if (Math.hypot(mx, my) > 1e-9) {
+        this.lastMotion = time;
+        if (mx * this.motion.x + my * this.motion.y < 0)
+          this.samples = [last];
+        this.motion.x = mx;
+        this.motion.y = my;
+      }
+    }
+    this.pointer = { x, y };
+    const entry = { value: { ...this.value }, time };
+    if (last?.time === time) this.samples[this.samples.length - 1] = entry;
+    else this.samples.push(entry);
+    this.samples = this.samples.filter((s) => time - s.time <= 120).slice(-32);
+  }
+  releaseVelocity(time: number) {
+    const first = this.samples[0];
+    const last = this.samples[this.samples.length - 1];
+    if (
+      !first ||
+      !last ||
+      time - this.lastMotion > 80 ||
+      last.time - first.time < 8
+    )
+      return { lane: 0, row: 0 };
+    const scale = 1000 / (last.time - first.time);
+    return {
+      lane: (last.value.lane - first.value.lane) * scale,
+      row: (last.value.row - first.value.row) * scale,
+    };
+  }
+}
 export class ArchiveScene {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
@@ -100,6 +181,11 @@ export class ArchiveScene {
   private last = 0;
   private pointer = new THREE.Vector2();
   private dragging = false;
+  // Fractional offsets of an active plane drag, in lane/row units.
+  private dragLane = 0;
+  private dragRow = 0;
+  private archiveDrag: PlaneDragTracker | null = null;
+  private dragPointerId: number | null = null;
   private rotation = 0;
   private targetRotation = 0;
   private light: THREE.DirectionalLight;
@@ -115,6 +201,9 @@ export class ArchiveScene {
   private aoKernelSize = 32;
   onSelect?: (index: number, cell?: ArchiveCell) => void;
   onHover?: (index: number | null) => void;
+  // Fired when a completed plane drag commits to a neighboring lane or row.
+  // The owner decides whether the navigation is currently allowed.
+  onNavigate?: (axis: "lane" | "row", direction: number) => void;
   constructor(
     private container: HTMLElement,
     private readonly selectionPulse = baselineSelectionWave,
@@ -418,6 +507,357 @@ export class ArchiveScene {
       },
     };
   }
+  // 「我的作品」档案的预览模型：同一装配体剔除光学环组/光学核心与机壳左缘的
+  // 竖排凸字（模板品牌残留，原本被圆环遮挡），原位放入象牙背板 + 画芯 + 琥珀画框。
+  async createArtworkModel(recordId: string) {
+    const artwork = ARTWORKS[recordId];
+    if (!artwork) throw new Error(`Unknown artwork ${recordId}`);
+    this.assemblyTemplate ??= new GLTFLoader()
+      .loadAsync("/assets/archive-assembly.glb")
+      .then((gltf) => {
+        gltf.scene.updateMatrixWorld(true);
+        return gltf.scene;
+      })
+      .catch((error) => {
+        this.assemblyTemplate = undefined;
+        throw error;
+      });
+    const template = await this.assemblyTemplate;
+    const model = new THREE.Group();
+    const meshes: THREE.Mesh[] = [];
+    template.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      const part = object.userData.assemblyPart;
+      if (part === "optical-lenses" || part === "optical-core") return;
+      const name = (object.material as THREE.Material).name.replace(
+        /\.\d+$/,
+        "",
+      );
+      if (name === "Moulded_Lettering") return;
+      const mesh = new THREE.Mesh(
+        object.geometry.clone().applyMatrix4(object.matrixWorld),
+        object.material,
+      );
+      mesh.userData.surface = name;
+      mesh.userData.assemblyPart = part;
+      model.add(mesh);
+      meshes.push(mesh);
+    });
+    this.appearance.prepare(model);
+    this.appearance.apply(model, 1);
+    this.appearance.setClarity(model, this.decryption.clarity);
+    // 盖板标签：作品版式（不复用主场景的 labelCanvas，避免污染选中档案）。
+    const labelCanvas = document.createElement("canvas");
+    labelCanvas.width = this.labelCanvas.width;
+    labelCanvas.height = this.labelCanvas.height;
+    this.drawArtworkLabel(
+      labelCanvas,
+      Number(recordId.slice(2)) - 1,
+      artwork.title,
+    );
+    const labelTexture = new THREE.CanvasTexture(labelCanvas);
+    labelTexture.colorSpace = THREE.SRGBColorSpace;
+    labelTexture.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
+    const label = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.99, 0.46),
+      new THREE.MeshBasicMaterial({
+        map: labelTexture,
+        toneMapped: false,
+        transparent: true,
+        depthWrite: false,
+      }),
+    );
+    label.position.set(-1.36, 3.04, 0.255);
+    label.userData.assemblyPart = "cover";
+    model.add(label);
+    meshes.push(label);
+    const board = await this.buildArtworkBoard(recordId, false);
+    model.add(...board.meshes);
+    return {
+      model,
+      board: {
+        meshes: board.meshes,
+        width: board.width,
+        height: board.height,
+        center: board.center.clone(),
+        print: board.print,
+        printWidth: board.printWidth,
+        printHeight: board.printHeight,
+      },
+      setClarity: (value: number) => this.appearance.setClarity(model, value),
+      dispose: () => {
+        for (const mesh of meshes) {
+          mesh.geometry.dispose();
+          (mesh.material as THREE.Material).dispose();
+        }
+        labelTexture.dispose();
+        board.dispose();
+      },
+    };
+  }
+  // 画框展板共用构建器：360° 查看器与主场景详情预览共用同一结构。
+  // 层次（从后到前，全部位于盖板 z≈0.174 之后）：
+  //   象牙背板 3.057×2.162（窗口实测 x [-1.373,1.704] y [0.852,3.034] 内缩 0.01，
+  //   挡住窗口内全部光学残留）→ 画芯（背板内只留 0.02 边距）→
+  //   琥珀半透明框条压在画芯前缘（框唇遮作品四缘 0.06、外探 0.03）。
+  // dissolve=true 时材质启用 alphaHash：主场景每帧外观插值写入的 opacity
+  // 变成溶出覆盖率，展板随抽卡/归位显现消失，且不被 appearance 的 dispose 误删纹理。
+  private artworkTextures = new Map<string, Promise<THREE.Texture>>();
+  private loadArtworkTexture(recordId: string) {
+    let cached = this.artworkTextures.get(recordId);
+    if (!cached) {
+      const artwork = ARTWORKS[recordId];
+      cached = new THREE.TextureLoader()
+        .loadAsync(artwork.src)
+        .then((texture) => {
+          texture.colorSpace = THREE.SRGBColorSpace;
+          texture.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
+          return texture;
+        })
+        // 作品图缺失时退回占位画面，查看器照常打开。
+        .catch(() => this.artworkFallbackTexture(artwork.title));
+      this.artworkTextures.set(recordId, cached);
+    }
+    return cached;
+  }
+  private async buildArtworkBoard(recordId: string, dissolve: boolean) {
+    const artwork = ARTWORKS[recordId];
+    if (!artwork) throw new Error(`Unknown artwork ${recordId}`);
+    const texture = await this.loadArtworkTexture(recordId);
+    const image = texture.image as { width?: number; height?: number };
+    const aspect =
+      image.width && image.height
+        ? image.width / image.height
+        : artwork.width / artwork.height;
+    const backMaterial = new THREE.MeshStandardMaterial({
+      color: "#eae5dc",
+      roughness: 0.7,
+      alphaHash: dissolve,
+    });
+    // 画芯六面分材质：正面 MeshBasicMaterial + toneMapped:false，颜色忠实原图、
+    // 不受场景光照与 ACES 影响（解决发白）；侧面与背面为象牙纯色。
+    const printFront = new THREE.MeshBasicMaterial({
+      map: texture,
+      toneMapped: false,
+      alphaHash: dissolve,
+    });
+    const printSide = new THREE.MeshStandardMaterial({
+      color: "#eae5dc",
+      roughness: 0.85,
+      alphaHash: dissolve,
+    });
+    const printBack = new THREE.MeshStandardMaterial({
+      color: "#e2dacd",
+      roughness: 0.85,
+      alphaHash: dissolve,
+    });
+    const artMaterials = [
+      printSide,
+      printSide,
+      printSide,
+      printSide,
+      printFront,
+      printBack,
+    ];
+    // 琥珀玻璃框：transmission 与全站 Frosted_Polymer 同一语言，必须明显半透明。
+    const frameMaterial = new THREE.MeshPhysicalMaterial({
+      color: "#ed821b",
+      roughness: 0.28,
+      metalness: 0,
+      transmission: 0.7,
+      thickness: 0.04,
+      ior: 1.46,
+      attenuationColor: new THREE.Color("#c25e07"),
+      attenuationDistance: 0.35,
+      alphaHash: dissolve,
+    });
+    const backGeometry = new THREE.BoxGeometry(1, 1, 0.026);
+    const printGeometry = new THREE.BoxGeometry(1, 1, 0.012);
+    const hBarGeometry = new THREE.BoxGeometry(1, 0.09, 0.012);
+    const vBarGeometry = new THREE.BoxGeometry(0.09, 1, 0.012);
+    const back = new THREE.Mesh(backGeometry, backMaterial);
+    const print = new THREE.Mesh(printGeometry, artMaterials);
+    const bars = [
+      new THREE.Mesh(hBarGeometry, frameMaterial),
+      new THREE.Mesh(hBarGeometry, frameMaterial),
+      new THREE.Mesh(vBarGeometry, frameMaterial),
+      new THREE.Mesh(vBarGeometry, frameMaterial),
+    ];
+    const meshes = [back, print, ...bars];
+    // 沿用装配部件标记：爆炸视图中框条随光学环组层、画芯随光学核心层、
+    // 背板随信息基板层，分层行为与档案模型一致。
+    const parts = [
+      "substrate",
+      "optical-core",
+      "optical-lenses",
+      "optical-lenses",
+      "optical-lenses",
+      "optical-lenses",
+    ];
+    meshes.forEach((mesh, i) => {
+      mesh.userData.assemblyPart = parts[i];
+      mesh.userData.surface = "Artwork_Board";
+      mesh.userData.artworkBoard = true;
+    });
+    print.userData.artworkPrint = true;
+    const cx = 0.1655,
+      cy = 1.943;
+    const board = {
+      meshes,
+      width: 0,
+      height: 0,
+      center: new THREE.Vector3(cx, cy, 0.16),
+      // 画芯单独暴露：360° 查看器的悬停/聚焦只作用于画面本身。
+      print,
+      printWidth: 0,
+      printHeight: 0,
+      layout: (nextAspect: number, nextTexture: THREE.Texture) => {
+        if (printFront.map !== nextTexture) {
+          printFront.map = nextTexture;
+          printFront.needsUpdate = true;
+        }
+        // 竖图以高为基准、横图以宽为基准。
+        const printW = nextAspect > 1 ? 3.017 : 2.122 * nextAspect;
+        const printH = nextAspect > 1 ? 3.017 / nextAspect : 2.122;
+        back.scale.set(3.057, 2.162, 1);
+        back.position.set(cx, cy, 0.143);
+        print.scale.set(printW, printH, 1);
+        print.position.set(cx, cy, 0.1625);
+        const outerW = printW + 0.06,
+          outerH = printH + 0.06;
+        bars[0].scale.set(outerW, 1, 1);
+        bars[0].position.set(cx, cy + printH / 2 - 0.015, 0.165);
+        bars[1].scale.set(outerW, 1, 1);
+        bars[1].position.set(cx, cy - printH / 2 + 0.015, 0.165);
+        bars[2].scale.set(1, outerH - 0.18, 1);
+        bars[2].position.set(cx - printW / 2 + 0.015, cy, 0.165);
+        bars[3].scale.set(1, outerH - 0.18, 1);
+        bars[3].position.set(cx + printW / 2 - 0.015, cy, 0.165);
+        board.width = outerW;
+        board.height = outerH;
+        board.printWidth = printW;
+        board.printHeight = printH;
+      },
+      dispose: () => {
+        backGeometry.dispose();
+        printGeometry.dispose();
+        hBarGeometry.dispose();
+        vBarGeometry.dispose();
+        backMaterial.dispose();
+        for (const material of artMaterials) material.dispose();
+        frameMaterial.dispose();
+        // 纹理由 artworkTextures 缓存统一持有，会话内复用、不随展板销毁。
+      },
+    };
+    board.layout(aspect, texture);
+    return board;
+  }
+  // 主场景详情预览的作品变体：作品档案隐藏圆环与机壳刻字网格（光学环残余的
+  // Optical_Edges 环肩被象牙背板自然遮挡），懒创建展板挂入 this.model；
+  // 切换作品只换纹理与比例，几何与材质复用。
+  private artworkHiddenSurfaces = new Set([
+    "Subsurface_Optics",
+    "Optical_Film_Edge",
+    "Amber_Optical_Inlay",
+    "Optical_Film",
+    "Moulded_Lettering",
+  ]);
+  private mainBoardPromise?: Promise<
+    Awaited<ReturnType<ArchiveScene["buildArtworkBoard"]>>
+  >;
+  private boardTicket = 0;
+  private applyArtworkVariant(index: number) {
+    const id = records[index]?.id as string | undefined;
+    const artwork = id ? ARTWORKS[id] : undefined;
+    const ticket = ++this.boardTicket;
+    for (const child of this.model.children) {
+      if (child.userData.artworkBoard) child.visible = Boolean(artwork);
+      else if (this.artworkHiddenSurfaces.has(child.userData.surface as string))
+        child.visible = !artwork;
+    }
+    if (!artwork || !id) return;
+    this.mainBoardPromise ??= this.buildArtworkBoard(id, true).then((board) => {
+      // 标签必须是 this.model 的最后一个 child（select 的离场副本按此取标签）。
+      const label = this.model.children[this.model.children.length - 1];
+      for (const mesh of board.meshes) mesh.visible = false;
+      this.model.add(...board.meshes);
+      this.model.add(label);
+      return board;
+    });
+    void Promise.all([this.mainBoardPromise, this.loadArtworkTexture(id)]).then(
+      ([board, texture]) => {
+        if (ticket !== this.boardTicket) return;
+        const image = texture.image as { width?: number; height?: number };
+        board.layout(
+          image.width && image.height
+            ? image.width / image.height
+            : artwork.width / artwork.height,
+          texture,
+        );
+        for (const mesh of board.meshes) mesh.visible = true;
+      },
+    );
+  }
+  private drawArtworkLabel(
+    target: HTMLCanvasElement,
+    index: number,
+    title: string,
+  ) {
+    const c = target.getContext("2d")!;
+    c.fillStyle = "#e6e2d9";
+    c.fillRect(0, 0, 1024, 440);
+    c.fillStyle = "#171713";
+    c.fillRect(12, 12, 1000, 6);
+    c.fillRect(12, 419, 1000, 3);
+    c.font = "bold 81px MiSans";
+    c.fillText("ZHOUXU.TOP", 22, 116);
+    c.font = "32px MiSans";
+    c.fillStyle = "#878476";
+    c.fillText("ARTWORK ARCHIVE", 25, 174);
+    c.fillStyle = "#171713";
+    c.font = "bold 130px MiSans";
+    c.fillText("NO." + String(index + 1).padStart(3, "0"), 22, 360);
+    c.fillRect(782, 32, 221, 39);
+    c.fillStyle = "#eee9de";
+    c.font = "24px MiSans";
+    c.fillText("Z X / T P", 809, 61);
+    c.fillStyle = "#171713";
+    // 右侧 INFO 位改放作品标题，按栏宽收缩字号。
+    let size = 44;
+    c.font = `bold ${size}px MiSans`;
+    while (c.measureText(title).width > 215 && size > 20) {
+      size -= 2;
+      c.font = `bold ${size}px MiSans`;
+    }
+    c.fillText(title, 830, 143);
+    c.drawImage(this.labelMark, 790, 242, 210, 98);
+  }
+  // 作品图缺失时的占位画芯：象牙底 + 琥珀边框 + 标题。
+  private artworkFallbackTexture(title: string) {
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 640;
+    const c = canvas.getContext("2d")!;
+    c.fillStyle = "#eae5dc";
+    c.fillRect(0, 0, 512, 640);
+    c.strokeStyle = "#ed821b";
+    c.lineWidth = 10;
+    c.strokeRect(16, 16, 480, 608);
+    c.fillStyle = "#171713";
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    let size = 64;
+    c.font = `bold ${size}px MiSans`;
+    while (c.measureText(title).width > 440 && size > 24) {
+      size -= 4;
+      c.font = `bold ${size}px MiSans`;
+    }
+    c.fillText(title, 256, 320);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
+    return texture;
+  }
   setMode(mode: "hidden" | "archive" | "detail") {
     if (mode === "detail") this.decryption.enter(this.scanBlend > .9 && this.decryption.clarity > .999);
     else this.decryption.leave();
@@ -438,6 +878,7 @@ export class ArchiveScene {
     this.targetReveal = mode === "hidden" ? 0 : 1;
     this.targetDetail = mode === "detail" ? 1 : 0;
     this.dragging = false;
+    this.cancelArchiveDrag();
     if (mode !== "detail") {
       this.targetRotation = 0;
       if (this.rotation !== 0) this.returnY = this.model.position.y;
@@ -528,6 +969,8 @@ export class ArchiveScene {
   }
   select(index: number, navigation?: ArchiveNavigation) {
     this.lastInteraction = this.clock;
+    // Programmatic navigation takes over from any in-progress column drag.
+    this.cancelArchiveDrag();
     const next = fileLocation(index).slot;
     const canonical = fileLocation(index);
     const cell = this.looping
@@ -550,6 +993,16 @@ export class ArchiveScene {
         transparent: true,
         depthWrite: false,
       });
+      // 离场副本的展板网格换成私有材质克隆：原模型展板随后切换到新作品，
+      // 若继续共享材质，离场副本会跟着换图；纹理由缓存持有，此处无需克隆。
+      // 注意画芯是六面材质数组，必须逐个克隆（数组本身没有 .clone()）。
+      for (const child of group.children)
+        if (child.userData.artworkBoard) {
+          const mesh = child as THREE.Mesh;
+          mesh.material = Array.isArray(mesh.material)
+            ? mesh.material.map((mat) => mat.clone())
+            : (mesh.material as THREE.Material).clone();
+        }
       this.appearance.apply(group, ease(this.lift.value / 0.4));
       this.appearance.setClarity(group, this.decryption.clarity);
       this.scene.add(group);
@@ -564,6 +1017,8 @@ export class ArchiveScene {
       this.lift.value = 0;
       this.lift.velocity = 0;
     }
+    // 变体切换必须发生在离场 clone 之后：副本保留旧作品，入场模型显示新作品。
+    this.applyArtworkVariant(index);
     this.selectedSlot = next;
     this.selectedCell = cell;
     if (changed) {
@@ -594,6 +1049,13 @@ export class ArchiveScene {
   }
   private drawLabel(index: number) {
     if (!this.labelTexture) return;
+    const artwork = ARTWORKS[records[index]?.id ?? ""];
+    if (artwork) {
+      // 作品档案：盖板标签换作品版式（ARTWORK ARCHIVE + 作品标题）。
+      this.drawArtworkLabel(this.labelCanvas, index, artwork.title);
+      this.labelTexture.needsUpdate = true;
+      return;
+    }
     const c = this.labelCanvas.getContext("2d")!;
     c.fillStyle = "#e6e2d9";
     c.fillRect(0, 0, 1024, 440);
@@ -654,7 +1116,28 @@ export class ArchiveScene {
       if (this.canInspect) {
         this.dragging = true;
         canvas.setPointerCapture(e.pointerId);
+        return;
       }
+      // Plane drags share the canvas with click selection: tracking starts on
+      // every eligible press, but only a ≥10px move activates the drag, so a
+      // <6px press still selects a file on release.
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      if (!this.canBrowse()) return;
+      if (this.archiveDrag) {
+        // A second contact cancels the in-progress drag instead of fighting it.
+        this.cancelArchiveDrag();
+        return;
+      }
+      const projection = this.dragProjection();
+      if (projection === null) return;
+      this.archiveDrag = new PlaneDragTracker(
+        e.clientX,
+        e.clientY,
+        projection,
+        e.timeStamp,
+      );
+      this.dragPointerId = e.pointerId;
+      canvas.setPointerCapture(e.pointerId);
     });
     canvas.addEventListener("pointermove", (e) => {
       const r = canvas.getBoundingClientRect();
@@ -673,6 +1156,24 @@ export class ArchiveScene {
           0.8,
         );
         return;
+      }
+      if (this.archiveDrag && e.pointerId === this.dragPointerId) {
+        this.archiveDrag.move(e.clientX, e.clientY, e.timeStamp);
+        if (this.archiveDrag.active) {
+          this.dragLane = THREE.MathUtils.clamp(
+            this.archiveDrag.value.lane,
+            -1.5,
+            1.5,
+          );
+          this.dragRow = THREE.MathUtils.clamp(
+            this.archiveDrag.value.row,
+            -2.5,
+            2.5,
+          );
+          this.lastInteraction = this.clock;
+          canvas.style.cursor = "grabbing";
+          return;
+        }
       }
       if (this.reveal < 0.8 || this.detail > 0.2 || !this.loaded) return;
       this.cursor.set(
@@ -695,6 +1196,11 @@ export class ArchiveScene {
     });
     canvas.addEventListener("pointerup", (e) => {
       this.dragging = false;
+      if (this.archiveDrag && e.pointerId === this.dragPointerId) {
+        const dragged = this.archiveDrag.active;
+        this.endArchiveDrag(e.timeStamp);
+        if (dragged) return; // A completed column drag is never a click.
+      }
       if (
         Math.hypot(e.clientX - startX, e.clientY - startY) > 6 ||
         this.detail > 0.2 ||
@@ -722,11 +1228,98 @@ export class ArchiveScene {
             : { ...this.selectedCell },
         );
     });
-    canvas.addEventListener("pointercancel", () => (this.dragging = false));
+    canvas.addEventListener("pointercancel", (e) => {
+      this.dragging = false;
+      if (e.pointerId === this.dragPointerId) this.cancelArchiveDrag();
+    });
+    canvas.addEventListener("lostpointercapture", (e) => {
+      if (e.pointerId === this.dragPointerId) this.cancelArchiveDrag();
+    });
+    window.addEventListener("blur", () => this.cancelArchiveDrag());
     canvas.addEventListener("pointerleave", () => {
       this.pointer.set(0, 0);
       this.onHover?.(null);
     });
+  }
+  private canBrowse() {
+    return (
+      this.looping &&
+      !this.targetDetail &&
+      this.detail < 0.2 &&
+      this.reveal > 0.8 &&
+      this.loaded
+    );
+  }
+  // Screen-pixel footprints of one lane and one row of track movement,
+  // measured through the camera: +1 lane shifts the content by
+  // (-COLUMN_SPACING, 0, 0) and +1 row by (0, 0, -ROW_SPACING) (the rail
+  // lowers as the row grows). With the settled camera the lane footprint is
+  // ≈(-394, +214) px and the row footprint ≈(-76, -15) px. The tracker maps
+  // screen axes independently (dx → lane via lane.x, dy → row via the row
+  // pitch), so only the horizontal lane component and the row magnitude are
+  // load-bearing; refuse to start a drag when either is degenerate.
+  private dragProjection() {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    if (rect.width < 1 || rect.height < 1) return null;
+    const origin = this.model.localToWorld(new THREE.Vector3(0, 1.85, 0));
+    const measure = (axis: THREE.Vector3) => {
+      const a = origin.clone().addScaledVector(axis, -0.5).project(this.camera);
+      const b = origin.clone().addScaledVector(axis, 0.5).project(this.camera);
+      return {
+        x: ((b.x - a.x) * rect.width) / 2,
+        y: (-(b.y - a.y) * rect.height) / 2,
+      };
+    };
+    const lane = measure(new THREE.Vector3(-COLUMN_SPACING, 0, 0));
+    const row = measure(new THREE.Vector3(0, 0, -ROW_SPACING));
+    const rowPitch = Math.hypot(row.x, row.y);
+    if (
+      !Number.isFinite(lane.x) ||
+      !Number.isFinite(rowPitch) ||
+      Math.abs(lane.x) <= 1 ||
+      rowPitch <= 1
+    )
+      return null;
+    return { lane, row };
+  }
+  private cancelArchiveDrag() {
+    this.endArchiveDrag(null);
+  }
+  private endArchiveDrag(time: number | null) {
+    const session = this.archiveDrag;
+    this.archiveDrag = null;
+    this.dragPointerId = null;
+    if (!session) return;
+    if (!session.active) return;
+    this.renderer.domElement.style.cursor = "default";
+    const velocity =
+      time === null ? { lane: 0, row: 0 } : session.releaseVelocity(time);
+    // Hand each axis to its spring so the motion continues seamlessly, whether
+    // it settles back or carries on into the neighbor (stepColumn/stepFile
+    // then simply retarget the same spring, exactly like the cursor keys).
+    // The rail lowers as the row grows, hence the negated row hand-off.
+    this.columnCamera.value += this.dragLane * COLUMN_SPACING;
+    this.columnCamera.velocity = this.reduced
+      ? 0
+      : velocity.lane * COLUMN_SPACING;
+    this.rail.value -= this.dragRow * ROW_SPACING;
+    this.rail.velocity = this.reduced ? 0 : -velocity.row * ROW_SPACING;
+    const offset = { lane: this.dragLane, row: this.dragRow };
+    this.dragLane = 0;
+    this.dragRow = 0;
+    if (time === null) return;
+    // Each axis settles independently: past ~0.35 of a unit or a >2/s flick
+    // commits one step, otherwise the spring rebounds.
+    for (const axis of ["lane", "row"] as const) {
+      const navigate =
+        Math.abs(offset[axis]) > 0.35 || Math.abs(velocity[axis]) > 2;
+      if (!navigate) continue;
+      const direction =
+        Math.abs(offset[axis]) > 0.35
+          ? Math.sign(offset[axis])
+          : Math.sign(velocity[axis]);
+      if (direction !== 0) this.onNavigate?.(axis, direction);
+    }
   }
   update(
     time: number,
@@ -752,6 +1345,10 @@ export class ArchiveScene {
       this.scanBlend *= Math.exp(-dt * 3);
     }
     if (this.looping && !cinematic) this.rebaseCoordinates();
+    // Mode or visibility can change between pointer events; a drag that lost
+    // its browse conditions is cancelled into the spring instead of sticking.
+    if (this.archiveDrag && (cinematic || !this.canBrowse()))
+      this.cancelArchiveDrag();
     const chosen = this.cellPosition(this.selectedCell);
     const selectedRow = this.selectedCell.row;
     const selectedLane = this.selectedCell.lane;
@@ -776,8 +1373,15 @@ export class ArchiveScene {
       this.columnCamera.velocity = 0;
     }
     // Keep the illuminated set near the origin. Lateral navigation is a track
-    // movement of the whole array, just like the existing front/back rail.
-    const trackX = cinematic ? 0 : this.columnCamera.value;
+    // movement of the whole array, just like the existing front/back rail. An
+    // active plane drag adds its fractional lane/row offsets on top of the
+    // springs (the rail lowers as the row grows, hence the negated row term);
+    // the wrap window below still follows the spring values alone, because the
+    // offsets stay well within the pool margins.
+    const trackX = cinematic
+      ? 0
+      : this.columnCamera.value + this.dragLane * COLUMN_SPACING;
+    const trackZ = cinematic ? 0 : this.rail.value - this.dragRow * ROW_SPACING;
     const center = {
       lane: this.columnCamera.value / COLUMN_SPACING + 2,
       row: (-this.rail.value - 2.17) / ROW_SPACING + 15.5,
@@ -916,7 +1520,7 @@ export class ArchiveScene {
       o.group.position.set(
         p.x - trackX,
         baseY + o.lift.value,
-        p.z + entryZ + this.rail.value,
+        p.z + entryZ + trackZ,
       );
       const quality = ease(o.lift.value / 0.4);
       this.appearance.apply(o.group, quality);
@@ -965,7 +1569,7 @@ export class ArchiveScene {
       this.dummy.position.set(
         p.x - trackX,
         p.y + field(row, lane),
-        p.z + entryZ + this.rail.value,
+        p.z + entryZ + trackZ,
       );
       this.dummy.rotation.set(slope * 0.024 * (1 - detail), 0, 0);
       this.dummy.scale.setScalar(
@@ -981,7 +1585,7 @@ export class ArchiveScene {
     this.model.position.set(
       chosen.x - trackX,
       chosen.y + field(selectedRow, selectedLane) + this.lift.value,
-      chosen.z + entryZ + this.rail.value,
+      chosen.z + entryZ + trackZ,
     );
     // Extraction only changes elevation. Reframing belongs to the camera.
     this.model.rotation.set(

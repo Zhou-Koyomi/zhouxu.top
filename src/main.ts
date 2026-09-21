@@ -8,9 +8,12 @@ import { qualityMarkup, syncQualityUI } from "./quality-settings";
 import "@kitlangton/rolling-number/styles.css";
 import "./style.css";
 import "./quality-settings.css";
+import "./cursor.css";
+import { setupCursor } from "./cursor";
 import { createRollingNumber, createRollingText } from "@kitlangton/rolling-number";
 import { ArchiveScene } from "./scene";
 import { ModelViewer } from "./model-viewer";
+import { ARTWORKS } from "./works";
 import { ContentTransition, SurfaceTransition } from "./ui-transitions";
 import { BootSequence } from "./boot";
 import { wrap, type ArchiveNavigation } from "./archive-loop";
@@ -398,6 +401,8 @@ function toggleSaved() {
 function renderDetail() {
   tabTransition.cancel();
   const r = records[selected];
+  const art = ARTWORKS[r.id];
+  const artExt = art ? art.src.slice(art.src.lastIndexOf(".")) : "";
   $("#object-id").textContent = "NO." + String(selected + 1).padStart(3, "0");
   $("#detail-content").innerHTML = `
   <div class="detail-kicker"><span>FILE ${r.id}</span><span>${escapeHtml(r.clearance)}</span></div>
@@ -406,8 +411,8 @@ function renderDetail() {
   <dl class="metadata"><div><dt>SECTION / 分区</dt><dd>${escapeHtml(r.department)}</dd></div><div><dt>UPDATED / 更新状态</dt><dd>${escapeHtml(r.date)}</dd></div><div><dt>AUTHOR / 档案作者</dt><dd>${escapeHtml(r.lead)}</dd></div><div><dt>STATUS / 状态</dt><dd><i></i>${r.clearance === "RESTRICTED" ? "目录访问" : "已归档 · 可读取"}</dd></div></dl>
   <div class="detail-tabs" role="tablist"><button id="tab-overview" class="active" role="tab" aria-controls="tab-panel" aria-selected="true" data-tab="overview">01 <span>概述</span></button><button id="tab-notes" role="tab" aria-controls="tab-panel" aria-selected="false" data-tab="notes">02 <span>详细内容</span></button><button id="tab-history" role="tab" aria-controls="tab-panel" aria-selected="false" data-tab="history">03 <span>访问日志</span></button><i class="tab-indicator" aria-hidden="true"></i></div>
   <div id="tab-panel" class="tab-panel" role="tabpanel">${overview()}</div>
-  <div class="detail-actions"><button class="solid-button" data-action="bookmark">${saved.has(r.id) ? "− REMOVE FROM SAVED" : "＋ SAVE ARCHIVE"}<span>${saved.has(r.id) ? "已收藏" : "收藏档案"}</span></button><a class="export-button" href="/archives/ZHOUXU-${r.id}.txt" download="ZHOUXU-${r.id}.txt" aria-label="导出 ${r.id} 档案">EXPORT <span>↓</span></a></div>
-  <div class="detail-footnote"><a href="mailto:zhouxu_2007@163.com">联系我 ↗</a><span>${String(selected + 1).padStart(3, "0")} / ${String(records.length).padStart(3, "0")}</span></div>`;
+  <div class="detail-actions"><div class="detail-actions-main"><button class="solid-button" data-action="bookmark">${saved.has(r.id) ? "− REMOVE FROM SAVED" : "＋ SAVE ARCHIVE"}<span>${saved.has(r.id) ? "已收藏" : "收藏档案"}</span></button>${art ? `<a class="export-button download-button" href="${art.src}" download="${escapeHtml(art.title)}${artExt}" aria-label="下载 ${escapeHtml(art.title)} 原图">下载原图 <span>↓</span></a>` : ""}</div><a class="export-button" href="/archives/ZHOUXU-${r.id}.txt" download="ZHOUXU-${r.id}.txt" aria-label="导出 ${r.id} 档案">EXPORT <span>↓</span></a></div>
+  <div class="detail-footnote"><button class="footnote-link" data-action="contact">联系我 ↗</button><span>${String(selected + 1).padStart(3, "0")} / ${String(records.length).padStart(3, "0")}</span></div>`;
   $("#detail-content").setAttribute("tabindex", "-1");
   $('[data-action="bookmark"]').setAttribute("aria-pressed", String(saved.has(r.id)));
   documentDecryption.reset($("#detail-content"), prefs.reduced || scene.decryptionFrame.phase === "clear");
@@ -638,11 +643,15 @@ document.addEventListener("click", (e) => {
     audio.setScene("viewer");
     viewer.setQuality(prefs.rendering);
     scene.finishDecryption();
+    const artwork = ARTWORKS[records[selected].id];
     viewer.open(
       records[selected].id,
       records[selected].title,
-      () => scene.createAssemblyModel(),
+      artwork
+        ? () => scene.createArtworkModel(records[selected].id)
+        : () => scene.createAssemblyModel(),
       prefs.reduced,
+      artwork?.partLabels,
     );
     audio.play("page-open");
   }
@@ -654,6 +663,12 @@ document.addEventListener("click", (e) => {
     openModal(action);
   if (action === "close-modal") closeModal();
   if (action === "bookmark") toggleSaved();
+  if (action === "contact") {
+    // 联系我：站内跳转到联系方式档案。
+    const target = records.findIndex((r) => r.id === "X-025");
+    if (target >= 0) select(target);
+    audio.play("confirm");
+  }
   if (action === "reset-search") {
     modal = "search";
     searchQuery = "";
@@ -877,6 +892,14 @@ async function start() {
       hoverCode.update({ animated });
       hoverTitle.update({ animated });
     };
+    // Plane drags on the canvas resolve to the same steps as the arrow keys:
+    // lane → ←/→ column steps, row → ↑/↓ file steps within the column.
+    scene.onNavigate = (axis, direction) => {
+      if (!ready || modal || mode !== "archive" || viewer?.isOpen) return;
+      const dir = direction < 0 ? -1 : 1;
+      if (axis === "lane") stepColumn(dir);
+      else stepFile(dir);
+    };
     savePrefs();
     ready = true;
     bootStart = performance.now() / 1000;
@@ -899,6 +922,7 @@ async function start() {
   }
 }
 updateSelection();
+setupCursor();
 void start();
 // Deterministic review controls: the running application, never a video surrogate.
 Object.assign(window, {

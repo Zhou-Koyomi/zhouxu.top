@@ -123,7 +123,12 @@ export class CardAppearance {
       const palette = this.palettes.get(mesh.userData.surface);
       if (!palette) {
         // The printed canvas belongs to this file, including returning copies.
-        (mesh.material as THREE.MeshBasicMaterial).opacity = value;
+        // Artwork board meshes may carry a six-face material array.
+        const materials = Array.isArray(mesh.material)
+          ? mesh.material
+          : [mesh.material];
+        for (const mat of materials)
+          (mat as THREE.MeshBasicMaterial).opacity = value;
         continue;
       }
       mesh.userData.appearance.value = value;
@@ -168,9 +173,14 @@ export class CardAppearance {
   dispose(group: THREE.Group) {
     for (const child of group.children) {
       const mesh = child as THREE.Mesh;
-      const mat = mesh.material as THREE.MeshBasicMaterial;
-      if (!mesh.userData.surface) mat.map?.dispose();
-      mat.dispose();
+      const materials = Array.isArray(mesh.material)
+        ? mesh.material
+        : [mesh.material];
+      for (const mat of materials) {
+        if (!mesh.userData.surface)
+          (mat as THREE.MeshBasicMaterial).map?.dispose();
+        mat.dispose();
+      }
     }
   }
 }
